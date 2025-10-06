@@ -154,9 +154,17 @@ const Map = ({ layers = [], searchQuery = '', filterType = 'all' }: MapProps) =>
         weight: 2,
       });
 
-      polygon.on('click', () => {
-        setSelectedClaim(data);
-      });
+      polygon.bindPopup(`
+        <div style="font-family: system-ui; min-width: 200px;">
+          <h3 style="font-weight: bold; margin-bottom: 8px; color: #1f2937;">${data.village}</h3>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Claim ID:</strong> ${data.claimId}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Type:</strong> ${data.type}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Area:</strong> ${data.area}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Status:</strong> <span style="color: ${data.status === 'Approved' ? '#16a34a' : data.status === 'Pending' ? '#f59e0b' : '#6b7280'}">${data.status}</span></p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Beneficiaries:</strong> ${data.beneficiaries}</p>
+          ${data.dateGranted ? `<p style="margin: 4px 0; font-size: 14px;"><strong>Date Granted:</strong> ${data.dateGranted}</p>` : ''}
+        </div>
+      `);
 
       forestRightsLayer.addLayer(polygon);
     });
@@ -241,9 +249,17 @@ const Map = ({ layers = [], searchQuery = '', filterType = 'all' }: MapProps) =>
           weight: 2,
         });
 
-        polygon.on('click', () => {
-          setSelectedClaim(data);
-        });
+        polygon.bindPopup(`
+          <div style="font-family: system-ui; min-width: 200px;">
+            <h3 style="font-weight: bold; margin-bottom: 8px; color: #1f2937;">${data.village}</h3>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Claim ID:</strong> ${data.claimId}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Type:</strong> ${data.type}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Area:</strong> ${data.area}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Status:</strong> <span style="color: ${data.status === 'Approved' ? '#16a34a' : data.status === 'Pending' ? '#f59e0b' : '#6b7280'}">${data.status}</span></p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Beneficiaries:</strong> ${data.beneficiaries}</p>
+            ${data.dateGranted ? `<p style="margin: 4px 0; font-size: 14px;"><strong>Date Granted:</strong> ${data.dateGranted}</p>` : ''}
+          </div>
+        `);
 
         layersRef.current?.forestRights.addLayer(polygon);
       });
@@ -265,7 +281,6 @@ const Map = ({ layers = [], searchQuery = '', filterType = 'all' }: MapProps) =>
       const centerLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
 
       mapRef.current.flyTo([centerLat, centerLng], 12, { duration: 1.5 });
-      setSelectedClaim(match);
       toast.success(`Found: ${match.village}`);
     } else {
       toast.info('No matching location found');
@@ -298,58 +313,6 @@ const Map = ({ layers = [], searchQuery = '', filterType = 'all' }: MapProps) =>
         </Button>
       </div>
 
-      {/* Selected claim info */}
-      {selectedClaim && (
-        <Card className="absolute bottom-4 left-4 right-4 z-[1000] p-4 bg-card/95 backdrop-blur-sm max-w-md">
-          <div className="flex items-start justify-between mb-3">
-            <h3 className="font-bold text-lg text-card-foreground">{selectedClaim.village}</h3>
-            <button
-              onClick={() => setSelectedClaim(null)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Claim ID:</span>
-              <span className="font-medium">{selectedClaim.claimId}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Type:</span>
-              <span className="font-medium">{selectedClaim.type}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Area:</span>
-              <span className="font-medium">{selectedClaim.area}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Status:</span>
-              <span
-                className={`font-medium ${
-                  selectedClaim.status === 'Approved'
-                    ? 'text-green-600'
-                    : selectedClaim.status === 'Pending'
-                    ? 'text-amber-600'
-                    : 'text-gray-600'
-                }`}
-              >
-                {selectedClaim.status}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Beneficiaries:</span>
-              <span className="font-medium">{selectedClaim.beneficiaries}</span>
-            </div>
-            {selectedClaim.dateGranted && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Date Granted:</span>
-                <span className="font-medium">{selectedClaim.dateGranted}</span>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
     </div>
   );
 };
