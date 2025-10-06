@@ -154,18 +154,6 @@ const Map = ({ layers = [], searchQuery = '', filterType = 'all' }: MapProps) =>
         weight: 2,
       });
 
-      polygon.bindPopup(`
-        <div style="font-family: system-ui; min-width: 200px;">
-          <h3 style="font-weight: bold; margin-bottom: 8px; color: #1f2937;">${data.village}</h3>
-          <p style="margin: 4px 0; font-size: 14px;"><strong>Claim ID:</strong> ${data.claimId}</p>
-          <p style="margin: 4px 0; font-size: 14px;"><strong>Type:</strong> ${data.type}</p>
-          <p style="margin: 4px 0; font-size: 14px;"><strong>Area:</strong> ${data.area}</p>
-          <p style="margin: 4px 0; font-size: 14px;"><strong>Status:</strong> <span style="color: ${data.status === 'Approved' ? '#16a34a' : data.status === 'Pending' ? '#f59e0b' : '#6b7280'}">${data.status}</span></p>
-          <p style="margin: 4px 0; font-size: 14px;"><strong>Beneficiaries:</strong> ${data.beneficiaries}</p>
-          ${data.dateGranted ? `<p style="margin: 4px 0; font-size: 14px;"><strong>Date Granted:</strong> ${data.dateGranted}</p>` : ''}
-        </div>
-      `);
-
       polygon.on('click', () => {
         setSelectedClaim(data);
       });
@@ -253,18 +241,6 @@ const Map = ({ layers = [], searchQuery = '', filterType = 'all' }: MapProps) =>
           weight: 2,
         });
 
-        polygon.bindPopup(`
-          <div style="font-family: system-ui; min-width: 200px;">
-            <h3 style="font-weight: bold; margin-bottom: 8px; color: #1f2937;">${data.village}</h3>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Claim ID:</strong> ${data.claimId}</p>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Type:</strong> ${data.type}</p>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Area:</strong> ${data.area}</p>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Status:</strong> <span style="color: ${data.status === 'Approved' ? '#16a34a' : data.status === 'Pending' ? '#f59e0b' : '#6b7280'}">${data.status}</span></p>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Beneficiaries:</strong> ${data.beneficiaries}</p>
-            ${data.dateGranted ? `<p style="margin: 4px 0; font-size: 14px;"><strong>Date Granted:</strong> ${data.dateGranted}</p>` : ''}
-          </div>
-        `);
-
         polygon.on('click', () => {
           setSelectedClaim(data);
         });
@@ -301,22 +277,22 @@ const Map = ({ layers = [], searchQuery = '', filterType = 'all' }: MapProps) =>
       <div ref={containerRef} className="w-full h-full" />
       
       {/* Base layer toggle */}
-      <div className="absolute top-4 right-4 z-[1000]">
+      <div className="absolute top-4 left-4 z-[1000]">
         <Button onClick={toggleBaseLayer} variant="secondary" size="sm" className="shadow-lg">
           {baseLayer === 'street' ? (
+            <>
+              <MapIcon className="w-4 h-4 mr-2" />
+              Street Map
+            </>
+          ) : baseLayer === 'satellite' ? (
             <>
               <Satellite className="w-4 h-4 mr-2" />
               Satellite
             </>
-          ) : baseLayer === 'satellite' ? (
+          ) : (
             <>
               <LayersIcon className="w-4 h-4 mr-2" />
               Topographic
-            </>
-          ) : (
-            <>
-              <MapIcon className="w-4 h-4 mr-2" />
-              Street Map
             </>
           )}
         </Button>

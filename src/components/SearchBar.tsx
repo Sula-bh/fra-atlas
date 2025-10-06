@@ -74,7 +74,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue placeholder="Filter by type" />
             </SelectTrigger>
-            <SelectContent className="bg-popover z-50">
+            <SelectContent className="bg-popover border border-border shadow-lg z-[1001]">
               <SelectItem value="all">All Rights</SelectItem>
               <SelectItem value="ifr">Individual (IFR)</SelectItem>
               <SelectItem value="cr">Community (CR)</SelectItem>
