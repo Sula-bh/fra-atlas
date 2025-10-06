@@ -1,20 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import OlMap from 'ol/Map';
-import View from 'ol/View';
-import TileLayer from 'ol/layer/Tile';
-import VectorLayer from 'ol/layer/Vector';
-import OSM from 'ol/source/OSM';
-import XYZ from 'ol/source/XYZ';
-import TileWMS from 'ol/source/TileWMS';
-import VectorSource from 'ol/source/Vector';
-import { Feature } from 'ol';
-import { Polygon } from 'ol/geom';
-import { fromLonLat } from 'ol/proj';
-import { Style, Fill, Stroke } from 'ol/style';
-import 'ol/ol.css';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/ui/button';
-import { MapIcon, Satellite } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { MapIcon, Satellite, Layers as LayersIcon } from 'lucide-react';
+
+// Fix Leaflet default marker icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 interface LayerToggle {
   id: string;
@@ -22,244 +20,298 @@ interface LayerToggle {
 }
 
 interface MapProps {
-  onMapLoad?: (map: OlMap) => void;
   layers?: LayerToggle[];
   searchQuery?: string;
   filterType?: 'all' | 'ifr' | 'cr' | 'cfr';
 }
 
-const Map = ({ onMapLoad, layers = [], searchQuery = '', filterType = 'all' }: MapProps) => {
+interface ClaimData {
+  id: number;
+  coords: number[][];
+  village: string;
+  type: 'IFR' | 'CFR' | 'CR';
+  area: string;
+  status: string;
+  claimId: string;
+  beneficiaries: number;
+  dateGranted?: string;
+}
+
+const Map = ({ layers = [], searchQuery = '', filterType = 'all' }: MapProps) => {
+  const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<OlMap | null>(null);
-  const [baseLayer, setBaseLayer] = useState<'osm' | 'satellite'>('osm');
-  const filterRef = useRef<'all' | 'ifr' | 'cr' | 'cfr'>(filterType);
-
+  const [baseLayer, setBaseLayer] = useState<'street' | 'satellite' | 'topo'>('street');
   const layersRef = useRef<{
-    osm: TileLayer<OSM>;
-    satellite: TileLayer<XYZ>;
-    forestCover: TileLayer<TileWMS>;
-    watershed: TileLayer<TileWMS>;
-    landUse: TileLayer<TileWMS>;
-    forestRights: VectorLayer<VectorSource>;
+    street: L.TileLayer;
+    satellite: L.TileLayer;
+    topo: L.TileLayer;
+    forestRights: L.LayerGroup;
+    watershed: L.TileLayer;
+    landUse: L.TileLayer;
   } | null>(null);
+  const [selectedClaim, setSelectedClaim] = useState<ClaimData | null>(null);
 
-  // Sample forest rights polygons (lon, lat)
-  const forestRightsData = [
+  // Sample forest rights data
+  const forestRightsData: ClaimData[] = [
     {
       id: 1,
-      coords: [
-        [78.5, 20.5],
-        [78.5, 20.6],
-        [78.6, 20.6],
-        [78.6, 20.5],
-        [78.5, 20.5],
-      ],
+      coords: [[20.5, 78.5], [20.6, 78.5], [20.6, 78.6], [20.5, 78.6]],
       village: 'Bhilwara Village',
       type: 'IFR',
       area: '5.2 ha',
       status: 'Approved',
+      claimId: 'FRA-2024-001',
+      beneficiaries: 45,
+      dateGranted: '2024-01-15',
     },
     {
       id: 2,
-      coords: [
-        [79.1, 21.2],
-        [79.1, 21.3],
-        [79.2, 21.3],
-        [79.2, 21.2],
-        [79.1, 21.2],
-      ],
+      coords: [[21.2, 79.1], [21.3, 79.1], [21.3, 79.2], [21.2, 79.2]],
       village: 'Khunti Village',
       type: 'CFR',
       area: '12.5 ha',
       status: 'Pending',
+      claimId: 'FRA-2024-002',
+      beneficiaries: 120,
     },
     {
       id: 3,
-      coords: [
-        [81.5, 19.8],
-        [81.5, 19.9],
-        [81.6, 19.9],
-        [81.6, 19.8],
-        [81.5, 19.8],
-      ],
+      coords: [[19.8, 81.5], [19.9, 81.5], [19.9, 81.6], [19.8, 81.6]],
       village: 'Dantewada Village',
       type: 'CR',
       area: '8.7 ha',
       status: 'Approved',
+      claimId: 'FRA-2024-003',
+      beneficiaries: 78,
+      dateGranted: '2024-02-20',
+    },
+    {
+      id: 4,
+      coords: [[22.1, 82.0], [22.2, 82.0], [22.2, 82.1], [22.1, 82.1]],
+      village: 'Bastar Village',
+      type: 'IFR',
+      area: '4.1 ha',
+      status: 'Under Review',
+      claimId: 'FRA-2024-004',
+      beneficiaries: 32,
     },
   ];
-
-  // Helpers
-  const statusStyle = (status: string) =>
-    new Style({
-      fill: new Fill({ color: status === 'Approved' ? 'rgba(34,197,94,0.4)' : 'rgba(251,191,36,0.4)' }),
-      stroke: new Stroke({ color: status === 'Approved' ? '#16a34a' : '#f59e0b', width: 2 }),
-    });
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    try {
-      // Base layers
-      const osmLayer = new TileLayer({ source: new OSM(), visible: true });
-      const satelliteLayer = new TileLayer({
-        source: new XYZ({
-          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-          attributions: 'Tiles © Esri',
-        }),
-        visible: false,
+    // Initialize map
+    const map = L.map(containerRef.current, {
+      center: [20.5937, 78.9629],
+      zoom: 6,
+      zoomControl: false,
+    });
+
+    // Add zoom control to top right
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Base layers
+    const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    });
+
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '© Esri',
+      maxZoom: 19,
+    });
+
+    const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenTopoMap contributors',
+      maxZoom: 17,
+    });
+
+    // Watershed overlay (example WMS)
+    const watershedLayer = L.tileLayer.wms('https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms', {
+      layers: 'watershed',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.6,
+    });
+
+    // Land use overlay (example WMS)
+    const landUseLayer = L.tileLayer.wms('https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms', {
+      layers: 'landuse',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.6,
+    });
+
+    // Forest rights layer group
+    const forestRightsLayer = L.layerGroup();
+
+    // Add polygons for forest rights
+    forestRightsData.forEach((data) => {
+      const polygon = L.polygon(data.coords as [number, number][], {
+        color: data.status === 'Approved' ? '#16a34a' : data.status === 'Pending' ? '#f59e0b' : '#6b7280',
+        fillColor: data.status === 'Approved' ? '#22c55e' : data.status === 'Pending' ? '#fbbf24' : '#9ca3af',
+        fillOpacity: 0.4,
+        weight: 2,
       });
 
-      // Bhuvan WMS overlays (example layer names; adjust if needed)
-      const forestCoverLayer = new TileLayer({
-        source: new TileWMS({
-          url: 'https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms',
-          params: { LAYERS: 'india3', TILED: true },
-          serverType: 'geoserver',
-        }),
-        visible: false,
-        opacity: 0.7,
+      polygon.bindPopup(`
+        <div style="font-family: system-ui; min-width: 200px;">
+          <h3 style="font-weight: bold; margin-bottom: 8px; color: #1f2937;">${data.village}</h3>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Claim ID:</strong> ${data.claimId}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Type:</strong> ${data.type}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Area:</strong> ${data.area}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Status:</strong> <span style="color: ${data.status === 'Approved' ? '#16a34a' : data.status === 'Pending' ? '#f59e0b' : '#6b7280'}">${data.status}</span></p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Beneficiaries:</strong> ${data.beneficiaries}</p>
+          ${data.dateGranted ? `<p style="margin: 4px 0; font-size: 14px;"><strong>Date Granted:</strong> ${data.dateGranted}</p>` : ''}
+        </div>
+      `);
+
+      polygon.on('click', () => {
+        setSelectedClaim(data);
       });
 
-      const watershedLayer = new TileLayer({
-        source: new TileWMS({
-          url: 'https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms',
-          params: { LAYERS: 'watershed', TILED: true },
-          serverType: 'geoserver',
-        }),
-        visible: false,
-        opacity: 0.6,
-      });
+      forestRightsLayer.addLayer(polygon);
+    });
 
-      const landUseLayer = new TileLayer({
-        source: new TileWMS({
-          url: 'https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms',
-          params: { LAYERS: 'landuse', TILED: true },
-          serverType: 'geoserver',
-        }),
-        visible: false,
-        opacity: 0.6,
-      });
+    // Add default base layer
+    streetLayer.addTo(map);
+    forestRightsLayer.addTo(map);
 
-      // Forest rights vector layer
-      const features = forestRightsData.map((data) => {
-        const coords = data.coords.map((c) => fromLonLat(c as [number, number]));
-        const polygon = new Polygon([coords]);
-        const feature = new Feature({ geometry: polygon });
-        feature.setProperties({ village: data.village, type: data.type, area: data.area, status: data.status });
-        return feature;
-      });
+    layersRef.current = {
+      street: streetLayer,
+      satellite: satelliteLayer,
+      topo: topoLayer,
+      forestRights: forestRightsLayer,
+      watershed: watershedLayer,
+      landUse: landUseLayer,
+    };
 
-      const vectorSource = new VectorSource({ features });
-      const forestRightsLayer = new VectorLayer({
-        source: vectorSource,
-        visible: true,
-        style: (feature) => {
-          const t = (feature.get('type') as string) || '';
-          const s = (feature.get('status') as string) || '';
-          const filterMap: Record<string, string> = { ifr: 'IFR', cr: 'CR', cfr: 'CFR' };
-          if (filterRef.current !== 'all' && t !== filterMap[filterRef.current]) return null;
-          return statusStyle(s);
-        },
-      });
-
-      // Store layers
-      layersRef.current = {
-        osm: osmLayer,
-        satellite: satelliteLayer,
-        forestCover: forestCoverLayer,
-        watershed: watershedLayer,
-        landUse: landUseLayer,
-        forestRights: forestRightsLayer,
-      };
-
-      // Initialize map
-      const map = new OlMap({
-        target: containerRef.current,
-        layers: [osmLayer, satelliteLayer, forestCoverLayer, watershedLayer, landUseLayer, forestRightsLayer],
-        view: new View({ center: fromLonLat([78.9629, 20.5937]), zoom: 5 }),
-      });
-
-      mapRef.current = map;
-      onMapLoad?.(map);
-      toast.success('Map loaded successfully');
-    } catch (error) {
-      console.error('Error initializing map:', error);
-      toast.error('Failed to load map');
-    }
+    mapRef.current = map;
+    toast.success('Map loaded successfully');
 
     return () => {
-      if (mapRef.current) {
-        mapRef.current.setTarget(undefined);
-        mapRef.current = null;
-      }
+      map.remove();
+      mapRef.current = null;
     };
   }, []);
 
-  // Sync overlay visibility with LayerControl
+  // Handle base layer toggle
+  const toggleBaseLayer = () => {
+    if (!mapRef.current || !layersRef.current) return;
+
+    const newLayer = baseLayer === 'street' ? 'satellite' : baseLayer === 'satellite' ? 'topo' : 'street';
+
+    mapRef.current.removeLayer(layersRef.current[baseLayer]);
+    mapRef.current.addLayer(layersRef.current[newLayer]);
+
+    setBaseLayer(newLayer);
+  };
+
+  // Handle layer visibility
   useEffect(() => {
-    if (!layersRef.current || !layers) return;
+    if (!mapRef.current || !layersRef.current) return;
+
     layers.forEach((layer) => {
       if (layer.id === 'forest' && layersRef.current?.forestRights) {
-        layersRef.current.forestRights.setVisible(layer.enabled);
+        if (layer.enabled) {
+          mapRef.current?.addLayer(layersRef.current.forestRights);
+        } else {
+          mapRef.current?.removeLayer(layersRef.current.forestRights);
+        }
       }
       if (layer.id === 'water' && layersRef.current?.watershed) {
-        layersRef.current.watershed.setVisible(layer.enabled);
+        if (layer.enabled) {
+          mapRef.current?.addLayer(layersRef.current.watershed);
+        } else {
+          mapRef.current?.removeLayer(layersRef.current.watershed);
+        }
       }
       if (layer.id === 'agriculture' && layersRef.current?.landUse) {
-        layersRef.current.landUse.setVisible(layer.enabled);
-      }
-      if (layer.id === 'infrastructure' && layersRef.current?.forestCover) {
-        layersRef.current.forestCover.setVisible(layer.enabled);
+        if (layer.enabled) {
+          mapRef.current?.addLayer(layersRef.current.landUse);
+        } else {
+          mapRef.current?.removeLayer(layersRef.current.landUse);
+        }
       }
     });
   }, [layers]);
 
-  // Apply type filter
+  // Handle filter type
   useEffect(() => {
-    filterRef.current = filterType;
-    if (layersRef.current?.forestRights) {
-      layersRef.current.forestRights.changed();
-    }
+    if (!mapRef.current || !layersRef.current) return;
+
+    // Clear and rebuild forest rights layer with filter
+    layersRef.current.forestRights.clearLayers();
+
+    forestRightsData
+      .filter((data) => filterType === 'all' || data.type.toLowerCase() === filterType)
+      .forEach((data) => {
+        const polygon = L.polygon(data.coords as [number, number][], {
+          color: data.status === 'Approved' ? '#16a34a' : data.status === 'Pending' ? '#f59e0b' : '#6b7280',
+          fillColor: data.status === 'Approved' ? '#22c55e' : data.status === 'Pending' ? '#fbbf24' : '#9ca3af',
+          fillOpacity: 0.4,
+          weight: 2,
+        });
+
+        polygon.bindPopup(`
+          <div style="font-family: system-ui; min-width: 200px;">
+            <h3 style="font-weight: bold; margin-bottom: 8px; color: #1f2937;">${data.village}</h3>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Claim ID:</strong> ${data.claimId}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Type:</strong> ${data.type}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Area:</strong> ${data.area}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Status:</strong> <span style="color: ${data.status === 'Approved' ? '#16a34a' : data.status === 'Pending' ? '#f59e0b' : '#6b7280'}">${data.status}</span></p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Beneficiaries:</strong> ${data.beneficiaries}</p>
+            ${data.dateGranted ? `<p style="margin: 4px 0; font-size: 14px;"><strong>Date Granted:</strong> ${data.dateGranted}</p>` : ''}
+          </div>
+        `);
+
+        polygon.on('click', () => {
+          setSelectedClaim(data);
+        });
+
+        layersRef.current?.forestRights.addLayer(polygon);
+      });
   }, [filterType]);
 
-  // Search and fly to village centroid
+  // Handle search
   useEffect(() => {
-    if (!mapRef.current) return;
-    const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return;
+    if (!mapRef.current || !searchQuery) return;
 
-    const match = forestRightsData.find((r) => r.village.toLowerCase().includes(q));
+    const query = searchQuery.toLowerCase().trim();
+    const match = forestRightsData.find((data) =>
+      data.village.toLowerCase().includes(query) || data.claimId.toLowerCase().includes(query)
+    );
+
     if (match) {
-      const lons = match.coords.map((c) => c[0]);
-      const lats = match.coords.map((c) => c[1]);
-      const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+      const lats = match.coords.map((c) => c[0]);
+      const lngs = match.coords.map((c) => c[1]);
       const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
-      mapRef.current.getView().animate({ center: fromLonLat([centerLon, centerLat]), zoom: 10, duration: 800 });
-      toast.success(`Centered on ${match.village}`);
+      const centerLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+
+      mapRef.current.flyTo([centerLat, centerLng], 12, { duration: 1.5 });
+      setSelectedClaim(match);
+      toast.success(`Found: ${match.village}`);
     } else {
-      toast.info('No matching village found in sample data');
+      toast.info('No matching location found');
     }
   }, [searchQuery]);
-
-  // Toggle base layer
-  const toggleBaseLayer = () => {
-    if (!layersRef.current) return;
-    const newBaseLayer = baseLayer === 'osm' ? 'satellite' : 'osm';
-    layersRef.current.osm.setVisible(newBaseLayer === 'osm');
-    layersRef.current.satellite.setVisible(newBaseLayer === 'satellite');
-    setBaseLayer(newBaseLayer);
-  };
 
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
-      <div className="absolute top-4 right-4 z-10">
+      
+      {/* Base layer toggle */}
+      <div className="absolute top-4 right-4 z-[1000]">
         <Button onClick={toggleBaseLayer} variant="secondary" size="sm" className="shadow-lg">
-          {baseLayer === 'osm' ? (
+          {baseLayer === 'street' ? (
             <>
               <Satellite className="w-4 h-4 mr-2" />
               Satellite
+            </>
+          ) : baseLayer === 'satellite' ? (
+            <>
+              <LayersIcon className="w-4 h-4 mr-2" />
+              Topographic
             </>
           ) : (
             <>
@@ -269,6 +321,59 @@ const Map = ({ onMapLoad, layers = [], searchQuery = '', filterType = 'all' }: M
           )}
         </Button>
       </div>
+
+      {/* Selected claim info */}
+      {selectedClaim && (
+        <Card className="absolute bottom-4 left-4 right-4 z-[1000] p-4 bg-card/95 backdrop-blur-sm max-w-md">
+          <div className="flex items-start justify-between mb-3">
+            <h3 className="font-bold text-lg text-card-foreground">{selectedClaim.village}</h3>
+            <button
+              onClick={() => setSelectedClaim(null)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Claim ID:</span>
+              <span className="font-medium">{selectedClaim.claimId}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Type:</span>
+              <span className="font-medium">{selectedClaim.type}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Area:</span>
+              <span className="font-medium">{selectedClaim.area}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Status:</span>
+              <span
+                className={`font-medium ${
+                  selectedClaim.status === 'Approved'
+                    ? 'text-green-600'
+                    : selectedClaim.status === 'Pending'
+                    ? 'text-amber-600'
+                    : 'text-gray-600'
+                }`}
+              >
+                {selectedClaim.status}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Beneficiaries:</span>
+              <span className="font-medium">{selectedClaim.beneficiaries}</span>
+            </div>
+            {selectedClaim.dateGranted && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Date Granted:</span>
+                <span className="font-medium">{selectedClaim.dateGranted}</span>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
