@@ -17,7 +17,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 
 interface AppSidebarProps {
@@ -25,7 +24,6 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ role = "admin" }: AppSidebarProps) {
-  const { open } = useSidebar();
 
   const adminLinks = [
     {
@@ -71,7 +69,7 @@ export function AppSidebar({ role = "admin" }: AppSidebarProps) {
   const linksToRender = role === "member" ? memberLinks : adminLinks;
 
   return (
-    <Sidebar collapsible="offcanvas">
+    <Sidebar collapsible="none">
       <SidebarContent>
         {/* Logo Section */}
         <div className="p-4 border-b border-border">
@@ -101,7 +99,7 @@ export function AppSidebar({ role = "admin" }: AppSidebarProps) {
                       className={({ isActive }) =>
                         isActive
                           ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                          : "hover:bg-muted"
+                          : "text-foreground hover:bg-muted"
                       }
                     >
                       <item.icon className="h-5 w-5" />
