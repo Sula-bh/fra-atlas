@@ -3,6 +3,8 @@ import Map from '@/components/Map';
 import LayerControl from '@/components/LayerControl';
 import SearchBar from '@/components/SearchBar';
 import Navbar from '@/components/Navbar';
+import { AppSidebar } from '@/components/AppSidebar';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { TreePine, Droplet, Wheat } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,48 +34,59 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-4 px-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <Navbar 
-            title="Forest Rights Act Atlas" 
-            username="FRA User"
-            onLogout={() => toast.info("Logout clicked")}
-          />
-          <p className="text-sm text-primary-foreground/90 -mt-6">
-            Digital Repository for FRA Claims, Satellite Mapping & Decision Support
-          </p>
+    <SidebarProvider>
+      <div className="min-h-screen bg-background flex w-full">
+        <AppSidebar role="admin" />
+
+        <div className="flex-1 flex flex-col w-full">
+          {/* Header */}
+          <header className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-4 px-6 shadow-lg">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger className="text-primary-foreground" />
+                <div className="flex-1">
+                  <Navbar 
+                    title="Forest Rights Act Atlas" 
+                    username="FRA User"
+                    onLogout={() => toast.info("Logout clicked")}
+                  />
+                  <p className="text-sm text-primary-foreground/90 -mt-6">
+                    Digital Repository for FRA Claims, Satellite Mapping & Decision Support
+                  </p>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Search Bar */}
+          <section className="max-w-7xl mx-auto w-full px-6 py-4">
+            <SearchBar onSearch={handleSearch} />
+          </section>
+
+          {/* Main Content - Map & Controls */}
+          <section className="flex-1 max-w-7xl mx-auto w-full px-6 pb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 h-[calc(100vh-220px)]">
+              {/* Map Area */}
+              <div className="lg:col-span-4 rounded-lg overflow-hidden shadow-xl">
+                <Map layers={layers} searchQuery={searchState.query} filterType={searchState.filter} />
+              </div>
+
+              {/* Right Sidebar */}
+              <div className="lg:col-span-1">
+                <LayerControl layers={layers} onLayerToggle={handleLayerToggle} />
+              </div>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="bg-muted py-4 px-6">
+            <div className="max-w-7xl mx-auto text-center text-muted-foreground text-xs">
+              <p>© 2024 Forest Rights Act Atlas | Ministry of Tribal Affairs, Government of India</p>
+            </div>
+          </footer>
         </div>
-      </header>
-
-      {/* Search Bar */}
-      <section className="max-w-7xl mx-auto w-full px-6 py-4">
-        <SearchBar onSearch={handleSearch} />
-      </section>
-
-      {/* Main Content - Map & Controls */}
-      <section className="flex-1 max-w-7xl mx-auto w-full px-6 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 h-[calc(100vh-220px)]">
-          {/* Map Area */}
-          <div className="lg:col-span-4 rounded-lg overflow-hidden shadow-xl">
-            <Map layers={layers} searchQuery={searchState.query} filterType={searchState.filter} />
-          </div>
-
-          {/* Right Sidebar */}
-          <div className="lg:col-span-1">
-            <LayerControl layers={layers} onLayerToggle={handleLayerToggle} />
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-muted py-4 px-6">
-        <div className="max-w-7xl mx-auto text-center text-muted-foreground text-xs">
-          <p>© 2024 Forest Rights Act Atlas | Ministry of Tribal Affairs, Government of India</p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 };
 
