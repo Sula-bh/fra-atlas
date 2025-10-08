@@ -71,7 +71,7 @@ export function AppSidebar({ role = "admin" }: AppSidebarProps) {
   const linksToRender = role === "member" ? memberLinks : adminLinks;
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="offcanvas">
       <SidebarContent>
         {/* Logo Section */}
         <div className="p-4 border-b border-border">
@@ -81,11 +81,9 @@ export function AppSidebar({ role = "admin" }: AppSidebarProps) {
               alt="FRA Logo"
               className="w-10 h-10 object-contain"
             />
-            {open && (
-              <span className="font-bold text-sm tracking-wide text-foreground">
-                FRA Digitizer
-              </span>
-            )}
+            <span className="font-bold text-sm tracking-wide text-foreground">
+              FRA Digitizer
+            </span>
           </div>
         </div>
 
@@ -107,7 +105,7 @@ export function AppSidebar({ role = "admin" }: AppSidebarProps) {
                       }
                     >
                       <item.icon className="h-5 w-5" />
-                      {open && <span>{item.label}</span>}
+                      <span>{item.label}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -126,7 +124,7 @@ export function AppSidebar({ role = "admin" }: AppSidebarProps) {
                   <SidebarMenuButton asChild>
                     <NavLink to={item.to} className="hover:bg-muted">
                       <item.icon className="h-5 w-5" />
-                      {open && <span>{item.label}</span>}
+                      <span>{item.label}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
