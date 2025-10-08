@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Map from '@/components/Map';
 import LayerControl from '@/components/LayerControl';
 import SearchBar from '@/components/SearchBar';
+import Navbar from '@/components/Navbar';
 import { TreePine, Droplet, Wheat } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,8 +36,12 @@ const Index = () => {
       {/* Header */}
       <header className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-4 px-6 shadow-lg">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold mb-1">Forest Rights Act Atlas</h1>
-          <p className="text-sm text-primary-foreground/90">
+          <Navbar 
+            title="Forest Rights Act Atlas" 
+            username="FRA User"
+            onLogout={() => toast.info("Logout clicked")}
+          />
+          <p className="text-sm text-primary-foreground/90 -mt-6">
             Digital Repository for FRA Claims, Satellite Mapping & Decision Support
           </p>
         </div>
